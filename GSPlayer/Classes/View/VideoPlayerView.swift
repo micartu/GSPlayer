@@ -129,7 +129,8 @@ open class VideoPlayerView: UIView {
     private var playerItemStatusObservation: NSKeyValueObservation?
     private var playerLayerReadyForDisplayObservation: NSKeyValueObservation?
     private var playerTimeControlStatusObservation: NSKeyValueObservation?
-    
+    private var playingTryCount: Int = 0
+
     // MARK: - Lifecycle
     
     open override var contentMode: UIView.ContentMode {
@@ -162,6 +163,10 @@ open class VideoPlayerView: UIView {
         CATransaction.commit()
     }
     
+    enum const {
+        static let maxPlayingTryCount: Int = 3
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -342,10 +347,15 @@ private extension VideoPlayerView {
             case .paused:
                 guard !self.isReplay else { break }
                 self.state = .paused(playProgress: self.playProgress, bufferProgress: self.bufferProgress)
-                if self.pausedReason == .waitingKeepUp { player.playImmediately(atRate: speedRate) }
+                if self.pausedReason == .waitingKeepUp,
+                   playingTryCount < const.maxPlayingTryCount {
+                    playingTryCount += 1
+                    player.playImmediately(atRate: speedRate)
+                }
             case .waitingToPlayAtSpecifiedRate:
                 break
             case .playing:
+                playingTryCount = 0
                 if self.playerLayer.isReadyForDisplay, player.rate > 0 {
                     self.isLoaded = true
                     if self.playProgress == 0, self.isReplay { self.isReplay = false; break }
