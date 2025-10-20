@@ -335,17 +335,17 @@ private extension VideoPlayerView {
             return
         }
         
-        playerLayerReadyForDisplayObservation = playerLayer.observe(\.isReadyForDisplay) { [unowned self, unowned player] playerLayer, _ in
-            if playerLayer.isReadyForDisplay, player.rate > 0 {
-                self.isLoaded = true
-                self.state = .playing
+        playerLayerReadyForDisplayObservation = playerLayer.observe(\.isReadyForDisplay) { [weak self, weak player] playerLayer, _ in
+            if playerLayer.isReadyForDisplay, player?.rate ?? 0 > 0 {
+                self?.isLoaded = true
+                self?.state = .playing
             }
         }
         
-        playerTimeControlStatusObservation = player.observe(\.timeControlStatus) { [unowned self] player, _ in
+        playerTimeControlStatusObservation = player.observe(\.timeControlStatus) { [weak self] player, _ in
             switch player.timeControlStatus {
             case .paused:
-                guard !self.isReplay else { break }
+                guard let self, !self.isReplay else { break }
                 self.state = .paused(playProgress: self.playProgress, bufferProgress: self.bufferProgress)
                 if self.pausedReason == .waitingKeepUp,
                    playingTryCount < const.maxPlayingTryCount {
@@ -355,11 +355,14 @@ private extension VideoPlayerView {
             case .waitingToPlayAtSpecifiedRate:
                 break
             case .playing:
-                playingTryCount = 0
-                if self.playerLayer.isReadyForDisplay, player.rate > 0 {
-                    self.isLoaded = true
-                    if self.playProgress == 0, self.isReplay { self.isReplay = false; break }
-                    self.state = .playing
+                self?.playingTryCount = 0
+                if self?.playerLayer.isReadyForDisplay ?? false, player.rate > 0 {
+                    self?.isLoaded = true
+                    if self?.playProgress == 0, self?.isReplay ?? false {
+                        self?.isReplay = false
+                        break
+                    }
+                    self?.state = .playing
                 }
             @unknown default:
                 break
@@ -376,7 +379,8 @@ private extension VideoPlayerView {
             return
         }
         
-        playerBufferingObservation = playerItem.observe(\.loadedTimeRanges) { [unowned self] item, _ in
+        playerBufferingObservation = playerItem.observe(\.loadedTimeRanges) { [weak self] item, _ in
+            guard let self else { return }
             if case .paused = self.state, self.pausedReason != .hidden {
                 self.state = .paused(playProgress: self.playProgress, bufferProgress: self.bufferProgress)
             }
@@ -388,14 +392,15 @@ private extension VideoPlayerView {
             }
         }
         
-        playerItemStatusObservation = playerItem.observe(\.status) { [unowned self] item, _ in
+        playerItemStatusObservation = playerItem.observe(\.status) { [weak self] item, _ in
             if item.status == .failed, let error = item.error as NSError? {
-                self.state = .error(error)
+                self?.state = .error(error)
             }
         }
         
-        playerItemKeepUpObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp) { [unowned self] item, _ in
+        playerItemKeepUpObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp) { [weak self] item, _ in
             if item.isPlaybackLikelyToKeepUp {
+                guard let self else { return }
                 if self.player?.rate == 0, self.pausedReason == .waitingKeepUp {
                     self.player?.playImmediately(atRate: speedRate)
                 }
