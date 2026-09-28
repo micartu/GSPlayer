@@ -48,6 +48,7 @@ class VideoLoader {
     
     func remove(request: AVAssetResourceLoadingRequest) {
         if let index = requestLoaders.firstIndex(where: { $0.request == request }) {
+            requestLoaders[index].cancel()
             requestLoaders[index].finish()
             requestLoaders.remove(at: index)
         }
@@ -55,6 +56,10 @@ class VideoLoader {
     
     func cancel() {
         downloader.cancel()
+        requestLoaders.forEach {
+            $0.cancel()
+            $0.finish()
+        }
         requestLoaders.removeAll()
     }
     

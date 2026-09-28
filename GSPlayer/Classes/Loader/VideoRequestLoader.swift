@@ -72,11 +72,13 @@ extension VideoRequestLoader: VideoDownloaderDelegate {
     }
     
     func downloader(_ downloader: VideoDownloader, didReceive data: Data) {
+        guard !request.isFinished else { return }
         request.dataRequest?.respond(with: data)
     }
     
     func downloader(_ downloader: VideoDownloader, didFinished error: Error?) {
         guard (error as NSError?)?.code != NSURLErrorCancelled else { return }
+        guard !request.isFinished else { return }
         
         if error == nil {
             request.finishLoading()
